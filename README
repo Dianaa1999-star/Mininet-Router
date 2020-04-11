@@ -1,0 +1,45 @@
+@Copyright Apostu-Croitoru Diana 321CA
+
+1. Prezentare generala
+
+	Scopul temei a fost de a implementa procesul de dirijare a pachetelor
+dintr-un router.
+
+2. Implementare 
+	
+	In rezolvarea temei am ultilizat trei protocoale: Ethernet, ARP si IP.
+
+->  Functia read_rtbl citeste datele din fisierul rtable.txt, populand campurile din 
+structura route_table_entry, si intoarce dimensiunea tabelei de rutare.	Pentru a stoca
+informatiile mi-am creat un vector rtable.  
+->  In functie de tipul campului ether_type am tratat doua cazuri: cazul in care este 
+un pachet IP, sau unul de tip ARP. 
+->  Daca este un pachet IP, am extras structura icmphdr, am verificat daca este un pachet
+destinat routerului(daca adresa ip a destinatiei --daddr-- corespunde cu cea a routerului),
+si daca tipul pachetului este ICMP_ECHO. Am interschimbat adresa sursei cu a destinatiei,
+am setat campul type din icmp ca fiind ECHO_REPLY si am trimis pachetul.
+->  Mi-am construit o functie verify_checksum care verifica daca checksum-ul este gresit.
+Daca da, arunc pachetul.
+->  Daca TTL este <= ca 1 , mi-am construit functia prepare_for_ttl care trimite mesajul
+Time exceeded. Am modificat datele din structurile ether_header,iphdr si icmphdr,schimband
+de asemenea, campul type din structura icmp, cu valoarea 11 potrivit tipului de mesaj.
+->  Pentru a gasi ruta cea mai buna de a trimite pachetul, am sortat tabela dupa prefix,
+implicit masca daca cele doua prefixe sunt egale, si am cautat binar in vectorul rtable. 
+Daca nu exista o astfel de ruta am procedat similar cu pasul precedent, schimband insa 
+type-ul cu valoarea 3 specifica mesajului Destination unreachable.
+-> Verific daca adresa MAC este cunoscuta , cautand in tabela ARP. Daca nu este cunoscuta, generez un ARP REQUEST, apeland functia prepare_send si salvez pachetul intr-o coada pentru al 
+transmite mai tarziu. In caz ca e cunoscuta, trimit pachetul.
+
+-> Daca este un pachet de tip ARP , verific daca este ARP REQUEST. Daca este un ARP REQUEST
+apelez functia prepare_for_request care schimba tipul pachetului in ARP REPLAY, setand
+corespunzator campurile din structura ether_arp.
+-> Daca este un pachet de tip ARP REPLAY, imi actualizez tabela ARP, si trimit pachetele
+ce se regasesc in coada.
+
+3. Design
+	Pentru a urmari usor codul, am facut construit functii (prepare_for_request,
+prepare_send,prepare_for_reply), modularizandu-l astfel. De asemenea, pentru a popula
+corespunzator campurile mi-am definit niste constante care mi-au usurat munca.
+4. Probleme
+	Am intampinat probleme in utilizarea checker-ului deoarece testele variau dupa
+fiecare rulare. De asemenea, nu calculam dimensiunea mesajului , cand creeam un pachet nou.
